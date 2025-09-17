@@ -1,0 +1,21 @@
+[
+  {
+    "journalist_name": "Alex Rodriguez",
+    "contact_email": "alex@mashable.com",
+    "company": "Mashable",
+    "specialty": "consumer tech",
+    "focus_areas": "smartphones,apps,social media",
+    "region": "United States",
+    "twitter_handle": "@alextech",
+    "bio": "Senior tech reporter covering consumer technology"
+  },
+  {
+    "reporter": "Maria Lopez",
+    "email": "maria@techcrunch.com", 
+    "outlet": "TechCrunch",
+    "beat": "AI/ML",
+    "topics": "artificial intelligence,machine learning,data science",
+    "country": "Spain",
+    "linkedin": "linkedin.com/in/marialopez"
+  }
+]
