@@ -19,6 +19,12 @@ class Settings(BaseSettings):
     smtp_port: int = 587
     smtp_user: str = ""
     smtp_password: str = ""
+
+    # AWS S3
+    aws_access_key_id: str
+    aws_secret_access_key: str
+    aws_region: str
+    s3_bucket: str
     
     # App
     environment: str = "development"

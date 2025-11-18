@@ -143,7 +143,8 @@ class PitchUpdate(BaseModel):
     industry: Optional[str] = Field(None, min_length=1, max_length=50)
     announcement_type: Optional[AnnouncementType] = None
     status: Optional[PitchStatus] = None
-
+    content: Optional[GeneratedContent] = None  # 🆕 Add this line
+    
 class PitchSearch(BaseModel):
     query: Optional[str] = None  # Search headline/company
     industry: Optional[str] = None
@@ -151,3 +152,11 @@ class PitchSearch(BaseModel):
     status: Optional[PitchStatus] = None
     limit: int = Field(default=20, ge=1, le=100)
     skip: int = Field(default=0, ge=0)
+
+
+class RewriteRequest(BaseModel):
+#    content: str
+    content_type: Literal["email", "press_release"]
+    mood: Literal["professional", "empathetic", "enthusiastic", "formal", "casual"] = "professional"
+    length: Literal["concise", "detailed", "shorter", "longer"] = "detailed"
+    style: Literal["grammatical", "creative", "technical", "conversational"] = "grammatical"

@@ -59,19 +59,20 @@ class AIService:
 
         Requirements:
         - Professional press release format
-        - Include dateline (current date and company location)
+        - Use placeholder "[CITY], [DATE]" for dateline instead of specific dates
         - Compelling headline and subheadline
         - 3-4 body paragraphs
         - Include a company boilerplate at the end
         - 400-500 words total
+        - DO NOT use any specific dates like "October 27, 2023" or "NEW YORK, October 27, 2023"                                                                
         - Professional, newsworthy tone
-
+        - Use "[CITY], [DATE]" at the beginning of the press release body
         Format:
         HEADLINE: [Compelling headline]
 
         SUBHEADLINE: [Supporting subheadline]
 
-        [DATELINE] - [Press release body with multiple paragraphs]
+        [CITY], [DATE] — {company_name}, [Press release body with multiple paragraphs]
 
         About [Company Name]:
         [Brief company description and boilerplate]
@@ -128,9 +129,11 @@ class AIService:
         - Compelling subject line
         - Brief and to-the-point (150-200 words)
         - Clear value proposition for the journalist
+        - DO NOT include any specific dates                                                              
         - Include placeholders: {{journalist_name}} and {{publication}}
         - Strong call-to-action
-
+        - If you need to reference timing, use phrases like "recently announced" or "just launched"
+                                                              
         Format:
         SUBJECT: [Compelling email subject line]
 

@@ -4,17 +4,23 @@ from contextlib import asynccontextmanager
 
 from app.config import settings
 from app.database import connect_to_mongo, close_mongo_connection, is_database_connected
-from app.routers import auth, journalists, pitches, emails, imports, profile  # Add imports import
+from app.routers import auth, journalists, pitches, emails, imports, profile, newsroom, chatbot  # Add imports import
+from app.services.ai_new.api_client import api_client
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
     print("🚀 Starting PR Platform MVP...")
     await connect_to_mongo()
+    await api_client.start()
+    print("✅ API Client initialized")
     yield
     # Shutdown
     print("👋 Shutting down PR Platform MVP...")
     await close_mongo_connection()
+    await api_client.stop()
+    print("✅ API Client closed")
 
 app = FastAPI(
     title="AI-Powered PR Platform MVP",
@@ -39,6 +45,10 @@ app.include_router(pitches.router, prefix=f"{settings.api_v1_prefix}/pitches", t
 app.include_router(emails.router, prefix=f"{settings.api_v1_prefix}/emails", tags=["Email"])  
 app.include_router(imports.router, prefix=f"{settings.api_v1_prefix}/import", tags=["Import"]) # Add imports router
 app.include_router(profile.router, prefix=f"{settings.api_v1_prefix}/profile", tags=["Profile"])
+app.include_router(newsroom.router, prefix=f"{settings.api_v1_prefix}/newsroom", tags=["Newsroom"])
+app.include_router(chatbot.router, prefix=f"{settings.api_v1_prefix}/chatbot", tags=["chatbot"])
+
+
 
 @app.get("/")
 async def root():
@@ -54,6 +64,8 @@ async def root():
             "Email Integration"
         ]
     }
+
+
 
 @app.get("/health")
 async def health_check():
