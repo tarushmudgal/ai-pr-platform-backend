@@ -3,7 +3,7 @@ import traceback
 
 # ---------------------------------------
 # 🔑 Paste your API key here
-API_KEY = "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"
+API_KEY = ""
 # ---------------------------------------
 
 
