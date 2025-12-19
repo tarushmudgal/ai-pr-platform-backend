@@ -7,6 +7,7 @@ from app.models.pitch import Pitch
 from app.models.journalist import Journalist
 from app.services.email_service import email_service
 from app.utils.dependencies import get_current_active_user
+from app.services.subscription_service import subscription_service
 
 router = APIRouter()
 
@@ -23,13 +24,36 @@ class SendPitchResponse(BaseModel):
     failed: List[dict]
     total_sent: int
     total_failed: int
+    credits_used: Optional[float] = None
+    remaining_credits: Optional[float] = None
 
 @router.post("/send-pitch", response_model=SendPitchResponse)
 async def send_pitch_to_journalists(
     request: SendPitchRequest,
     current_user: User = Depends(get_current_active_user)
 ):
-    """Send a pitch to selected journalists via email"""
+    """Send a pitch to selected journalists via email (0.1 credits per recipient)"""
+    
+    recipient_count = len(request.journalist_ids)
+    credit_cost = recipient_count * 0.1
+    
+    # Check and deduct credits BEFORE sending
+    credit_check = await subscription_service.check_and_deduct_credits(
+        user_id=str(current_user.id),
+        feature="email_send_per_recipient",
+        amount=credit_cost
+    )
+    
+    if not credit_check["success"]:
+        raise HTTPException(
+            status_code=402,
+            detail={
+                "error": "insufficient_credits",
+                "message": f"Need {credit_cost} credits to send to {recipient_count} recipients. You have {credit_check['remaining_credits']} credits.",
+                "remaining_credits": credit_check["remaining_credits"],
+                "credits_needed": credit_cost
+            }
+        )
     
     # Get and validate pitch
     try:
@@ -51,7 +75,7 @@ async def send_pitch_to_journalists(
             detail="Pitch not found"
         )
     
-    # Validate journalist IDs belong to user
+    # Validate journalist IDs
     valid_journalist_ids = []
     for journalist_id in request.journalist_ids:
         try:
@@ -81,11 +105,13 @@ async def send_pitch_to_journalists(
     )
     
     return SendPitchResponse(
-        message=f"Email sending completed. {results['total_sent']} sent, {results['total_failed']} failed.",
+        message=f"Email sending completed. {results['total_sent']} sent, {results['total_failed']} failed. Used {credit_check['credits_used']} credits.",
         sent=results["sent"],
         failed=results["failed"],
         total_sent=results["total_sent"],
-        total_failed=results["total_failed"]
+        total_failed=results["total_failed"],
+        credits_used=credit_check["credits_used"],
+        remaining_credits=credit_check["remaining_credits"]
     )
 
 @router.get("/interactions")

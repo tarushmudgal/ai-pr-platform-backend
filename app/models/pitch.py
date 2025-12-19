@@ -62,7 +62,7 @@ class Pitch(Document):
     # Input Data
     headline: str = Field(..., min_length=5, max_length=200)
     company_name: str = Field(..., min_length=1, max_length=100)
-    key_points: List[str] = Field(..., min_items=1, max_items=10)
+    key_points: List[str] = Field(..., min_items=1, max_items=50)
     industry: str = Field(..., min_length=1, max_length=50)
     announcement_type: AnnouncementType
     
@@ -118,7 +118,7 @@ class Pitch(Document):
 class PitchCreate(BaseModel):
     headline: str = Field(..., min_length=5, max_length=200)
     company_name: str = Field(..., min_length=1, max_length=100)
-    key_points: List[str] = Field(..., min_items=1, max_items=10)
+    key_points: List[str] = Field(..., min_items=1, max_items=50)
     industry: str = Field(..., min_length=1, max_length=50)
     announcement_type: AnnouncementType
 
@@ -139,7 +139,7 @@ class PitchResponse(BaseModel):
 class PitchUpdate(BaseModel):
     headline: Optional[str] = Field(None, min_length=5, max_length=200)
     company_name: Optional[str] = Field(None, min_length=1, max_length=100)
-    key_points: Optional[List[str]] = Field(None, min_items=1, max_items=10)
+    key_points: Optional[List[str]] = Field(None, min_items=1, max_items=50)
     industry: Optional[str] = Field(None, min_length=1, max_length=50)
     announcement_type: Optional[AnnouncementType] = None
     status: Optional[PitchStatus] = None

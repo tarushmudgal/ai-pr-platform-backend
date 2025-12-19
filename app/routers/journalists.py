@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
+from beanie import PydanticObjectId
 from typing import Optional
 from app.models.journalist import (
+    Journalist,
     JournalistCreate, 
     JournalistUpdate, 
     JournalistResponse,
@@ -8,6 +10,7 @@ from app.models.journalist import (
     JournalistCategory,
     JournalistStatus
 )
+from datetime import datetime
 from app.models.user import User
 from app.services.journalist_service import JournalistService
 from app.utils.dependencies import get_current_active_user
@@ -74,6 +77,39 @@ async def delete_journalist(
     """Delete journalist"""
     return await JournalistService.delete_journalist(journalist_id, current_user)
 
+@router.post("/{journalist_id}/toggle-verification", response_model=dict)
+async def toggle_journalist_verification(
+    journalist_id: str,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Toggle journalist verification status"""
+    try:
+        journalist_obj_id = PydanticObjectId(journalist_id)
+        journalist = await Journalist.find_one(
+            Journalist.id == journalist_obj_id,
+            Journalist.added_by_user_id == str(current_user.id)
+        )
+        
+        if not journalist:
+            raise HTTPException(status_code=404, detail="Journalist not found")
+        
+        # Toggle verification
+        journalist.verified = not journalist.verified
+        journalist.updated_at = datetime.utcnow()
+        await journalist.save()
+        
+        return {
+            "message": f"Journalist {'verified' if journalist.verified else 'unverified'} successfully",
+            "verified": journalist.verified,
+            "journalist_id": str(journalist.id),
+            "journalist_name": journalist.name
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error toggling verification: {e}")
+        raise HTTPException(status_code=500, detail="Failed to toggle verification status")
+
 # Quick stats endpoint
 @router.get("/stats/overview")
 async def get_journalist_stats(
@@ -133,3 +169,4 @@ async def get_journalist_stats(
             ) if all_journalists else 0
         }
     }
+

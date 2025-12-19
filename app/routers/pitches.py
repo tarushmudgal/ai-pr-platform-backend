@@ -13,6 +13,7 @@ from app.models.user import User
 from app.services.pitch_service import PitchService
 from app.utils.dependencies import get_current_active_user
 from app.services.rewriting_service import rewriting_service
+from app.services.subscription_service import subscription_service 
 
 router = APIRouter()
 
@@ -21,8 +22,40 @@ async def create_pitch(
     pitch_data: PitchCreate,
     current_user: User = Depends(get_current_active_user)
 ):
-    """Generate a new AI-powered pitch (costs 1 credit)"""
-    return await PitchService.create_pitch(pitch_data, current_user)
+    """Generate a new AI-powered pitch (costs 2 credits)"""
+
+        # Check and deduct credits
+    credit_check = await subscription_service.check_and_deduct_credits(
+        user_id=str(current_user.id),
+        feature="pitch_generation"
+    )
+    
+    if not credit_check["success"]:
+        raise HTTPException(
+            status_code=402,
+            detail={
+                "error": "insufficient_credits",
+                "message": credit_check["message"],
+                "remaining_credits": credit_check["remaining_credits"],
+                "credits_needed": credit_check.get("credits_needed", 2.0)
+            }
+        )
+    
+    # Generate pitch
+    pitch = await PitchService.create_pitch(pitch_data, current_user)
+    
+    # Convert to dict and add credit info
+    if hasattr(pitch, 'dict'):
+        pitch_dict = pitch.dict()
+    else:
+        pitch_dict = pitch
+    
+    pitch_dict["credits_used"] = credit_check["credits_used"]
+    pitch_dict["remaining_credits"] = credit_check["remaining_credits"]
+    
+    return pitch_dict
+
+    #return await PitchService.create_pitch(pitch_data, current_user)
 
 @router.get("/", response_model=dict)
 async def search_pitches(
@@ -78,14 +111,43 @@ async def regenerate_pitch(
     current_user: User = Depends(get_current_active_user)
 ):
     """Regenerate AI content for existing pitch (costs 1 credit)"""
-    return await PitchService.regenerate_pitch_content(pitch_id, current_user)
+        # Check and deduct credits
+    credit_check = await subscription_service.check_and_deduct_credits(
+        user_id=str(current_user.id),
+        feature="pitch_regeneration"
+    )
+    
+    if not credit_check["success"]:
+        raise HTTPException(
+            status_code=402,
+            detail={
+                "error": "insufficient_credits",
+                "message": credit_check["message"],
+                "remaining_credits": credit_check["remaining_credits"],
+                "credits_needed": credit_check.get("credits_needed", 2.0)
+            }
+        )
+    
+    pitch = await PitchService.regenerate_pitch_content(pitch_id, current_user)
+    
+    # Convert to dict and add credit info
+    if hasattr(pitch, 'dict'):
+        pitch_dict = pitch.dict()
+    else:
+        pitch_dict = pitch
+    
+    pitch_dict["credits_used"] = credit_check["credits_used"]
+    pitch_dict["remaining_credits"] = credit_check["remaining_credits"]
+    
+    return pitch_dict
+    
+    #return await PitchService.regenerate_pitch_content(pitch_id, current_user)
 
 @router.get("/stats/overview")
 async def get_pitch_stats(
     current_user: User = Depends(get_current_active_user)
 ):
     """Get pitch generation statistics for current user"""
-    from app.models.pitch import Pitch
     
     total_pitches = await Pitch.find(
         Pitch.user_id == str(current_user.id)
@@ -110,6 +172,9 @@ async def get_pitch_stats(
     total_responses = sum([p.performance.responses_received for p in all_pitches])
     total_articles = sum([p.performance.articles_published for p in all_pitches])
     
+    # Get credit summary
+    credit_summary = await subscription_service.get_credit_summary(str(current_user.id))
+    
     return {
         "total_pitches": total_pitches,
         "draft_pitches": draft_pitches,
@@ -120,8 +185,11 @@ async def get_pitch_stats(
             "total_articles": total_articles,
             "response_rate": round(total_responses / total_emails_sent, 3) if total_emails_sent > 0 else 0
         },
-        "credits_remaining": current_user.credits_remaining
+        "credits_remaining": credit_summary["total_credits"],
+        "current_plan": credit_summary["current_plan"],
+        "credit_balances": credit_summary["credit_balances"]
     }
+
 
 
 
@@ -214,6 +282,25 @@ async def rewrite_pitch_content(
     request: RewriteRequest,
     current_user: User = Depends(get_current_active_user)
 ):
+    """Rewrite pitch content (costs 1 credit)"""
+    
+    # Check and deduct credits
+    credit_check = await subscription_service.check_and_deduct_credits(
+        user_id=str(current_user.id),
+        feature="pitch_rewrite"
+    )
+    
+    if not credit_check["success"]:
+        raise HTTPException(
+            status_code=402,
+            detail={
+                "error": "insufficient_credits",
+                "message": credit_check["message"],
+                "remaining_credits": credit_check["remaining_credits"],
+                "credits_needed": credit_check.get("credits_needed", 1.0)
+            }
+        )
+    
     try:
         # Get the pitch
         pitch_obj_id = PydanticObjectId(pitch_id)
@@ -228,15 +315,11 @@ async def rewrite_pitch_content(
         # Extract content based on type with proper cleaning
         if request.content_type == "email":
             raw_content = pitch.content.email_pitch.body
-            # Clean email content to remove subject lines
             original_content = clean_email_content(raw_content)
-            print(f"🔍 DEBUG: Cleaned email content: {len(original_content)} chars")
             
         elif request.content_type == "press_release":
             raw_content = str(pitch.content.press_release.body)
-            # Clean press release content to remove headers
             original_content = clean_press_release_content(raw_content)
-            print(f"🔍 DEBUG: Cleaned press release content: {len(original_content)} chars")
         else:
             raise HTTPException(status_code=400, detail="Invalid content_type")
         
@@ -266,9 +349,13 @@ async def rewrite_pitch_content(
                 "mood": request.mood,
                 "length": request.length,
                 "style": request.style
-            }
+            },
+            "credits_used": credit_check["credits_used"],
+            "remaining_credits": credit_check["remaining_credits"]
         }
         
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"Error rewriting pitch content: {e}")
         raise HTTPException(status_code=400, detail=str(e))

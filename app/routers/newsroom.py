@@ -200,9 +200,9 @@ async def upload_media_asset(
         raise HTTPException(status_code=500, detail="Failed to upload media asset")
 
 
-@router.delete("/media/{asset_index}", response_model=dict)
+@router.delete("/media/{asset_id}", response_model=dict)
 async def delete_media_asset(
-    asset_index: int,
+    asset_id: str,  # Changed from asset_index: int
     current_user: User = Depends(get_current_active_user)
 ):
     """Delete media asset from newsroom"""
@@ -213,11 +213,18 @@ async def delete_media_asset(
         if not newsroom:
             raise HTTPException(status_code=404, detail="Newsroom not found")
         
-        if asset_index < 0 or asset_index >= len(newsroom.media_assets):
-            raise HTTPException(status_code=404, detail="Media asset not found")
+        # Find and remove the asset by ID
+        deleted_asset = None
+        asset_index = None
         
-        # Remove the asset
-        deleted_asset = newsroom.media_assets.pop(asset_index)
+        for i, asset in enumerate(newsroom.media_assets):
+            if asset.id == asset_id:
+                deleted_asset = newsroom.media_assets.pop(i)
+                asset_index = i
+                break
+        
+        if not deleted_asset:
+            raise HTTPException(status_code=404, detail="Media asset not found")
         
         # Delete file from S3
         try:
@@ -239,6 +246,7 @@ async def delete_media_asset(
     except Exception as e:
         print(f"Error deleting media asset: {e}")
         raise HTTPException(status_code=500, detail="Failed to delete media asset")
+
 
 
 @router.post("/press-release", response_model=dict)

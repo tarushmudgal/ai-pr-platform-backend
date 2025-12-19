@@ -68,7 +68,7 @@ class PDFService:
             story = []
             
             # Header with branding
-            story.append(Paragraph("Redfern & Chase", 
+            story.append(Paragraph(pitch.company_name, 
                 ParagraphStyle('Brand', fontSize=14, alignment=TA_CENTER, textColor=colors.HexColor('#667eea'))
             ))
             story.append(Spacer(1, 20))
@@ -133,7 +133,7 @@ class PDFService:
             story.append(Spacer(1, 20))
             
             story.append(Paragraph(
-                "This press release was created by Redfern & Chase", 
+                f"This press release was created by {pitch.company_name}", 
                 ParagraphStyle('Footer', fontSize=8, textColor=colors.grey, alignment=TA_CENTER)
             ))
             

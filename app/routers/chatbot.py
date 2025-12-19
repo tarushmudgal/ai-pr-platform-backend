@@ -17,6 +17,7 @@ from app.services.langgraph_ai_agent_service import EnhancedChatbotAgent
 from datetime import datetime
 import json
 import logging
+from app.services.subscription_service import subscription_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -29,7 +30,24 @@ async def send_message(
     http_request: Request,
     current_user: User = Depends(get_current_active_user)
 ):
-    """Send a message to the AI agent with streaming response"""
+    """Send a message to the AI agent with streaming response (0.5 credits per message)"""
+    
+    # Check and deduct credits BEFORE processing
+    credit_check = await subscription_service.check_and_deduct_credits(
+        user_id=str(current_user.id),
+        feature="ai_chat_message"
+    )
+    
+    if not credit_check["success"]:
+        raise HTTPException(
+            status_code=402,
+            detail={
+                "error": "insufficient_credits",
+                "message": credit_check["message"],
+                "remaining_credits": credit_check["remaining_credits"],
+                "credits_needed": credit_check.get("credits_needed", 0.5)
+            }
+        )
     try:
         # Extract Authorization header ("Bearer <token>")
         auth_header = http_request.headers.get("authorization")

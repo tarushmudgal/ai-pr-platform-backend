@@ -3,8 +3,11 @@ from beanie import Document, Indexed
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 from datetime import datetime
+from uuid import uuid4
+import uuid
 
 class MediaAsset(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     type: str = Field(..., description="Type of media (image, video, document)")
     title: str = Field(..., min_length=1, max_length=200)
     description: Optional[str] = Field(None, max_length=500)

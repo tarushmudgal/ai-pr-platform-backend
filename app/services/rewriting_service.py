@@ -1,11 +1,23 @@
 from typing import Literal
-from openai import OpenAI
+from langchain_openai import ChatOpenAI
+from langchain.prompts import ChatPromptTemplate
+from langchain.schema.output_parser import StrOutputParser
 from app.config import settings
+
 
 class RewritingService:
     
     def __init__(self):
-        self.client = OpenAI(api_key=settings.openai_api_key)
+        if not settings.openai_api_key:
+            raise ValueError("OpenAI API key not found")
+        
+        self.llm = ChatOpenAI(
+            api_key=settings.openai_api_key,
+            model="gpt-4o-mini",  #  Change model for better output
+            temperature=0.7,
+            max_tokens=2000
+        )
+        self.output_parser = StrOutputParser()
     
     async def rewrite_content(
         self, 
@@ -18,10 +30,7 @@ class RewritingService:
         """Rewrite content with specified mood, length, and style"""
         
         print(f"🔍 DEBUG: Starting rewrite - Type: {content_type}, Mood: {mood}, Length: {length}, Style: {style}")
-        print(f"🔍 DEBUG: Input content length: {len(content)} characters")
-        print(f"🔍 DEBUG: Input preview: {content[:150]}...")
         
-        # Build detailed prompt
         mood_instructions = {
             "professional": "Use formal language, industry terminology, and maintain a business-appropriate tone",
             "empathetic": "Use understanding, compassionate language that connects with the reader emotionally",
@@ -31,8 +40,8 @@ class RewritingService:
         }
         
         length_instructions = {
-            "concise": "Make it significantly shorter while keeping all key information",
-            "detailed": "Expand with more details, examples, and comprehensive explanations",
+            "concise": "Make it significantly shorter (50-70% of original length) while keeping all key information",
+            "detailed": "Expand with more details, examples, and comprehensive explanations (150-200% of original)",
             "shorter": "Reduce length by about 30% while maintaining core message",
             "longer": "Increase length by about 50% with additional context and details"
         }
@@ -45,53 +54,65 @@ class RewritingService:
         }
         
         placeholder_instruction = ""
-        if content_type == "press_release":
-            placeholder_instruction = "\n- Keep any existing placeholders like [CITY], [DATE] unchanged"
+        if content_type == "email":
+            placeholder_instruction = "Keep {{journalist_name}} and {{publication}} placeholders EXACTLY as they are with double curly braces. Do NOT replace them with actual names."
         else:
-            placeholder_instruction = "\n- Keep any existing placeholders like {journalist_name}, {publication} unchanged\n- Do not add specific dates - use general terms like 'recently' instead"
+            placeholder_instruction = "Keep [CITY] and [DATE] placeholders EXACTLY as they are. Do NOT add specific dates."
         
+        rewrite_prompt = ChatPromptTemplate.from_template("""
+You are a professional content editor. Rewrite the following {content_type} with these specifications:
 
-        prompt = f"""Rewrite the following {content_type} with these specific requirements:
+MOOD: {mood}
+{mood_description}
 
-    MOOD: {mood} - {mood_instructions[mood]}
-    LENGTH: {length} - {length_instructions[length]}  
-    STYLE: {style} - {style_instructions[style]}
+LENGTH: {length}
+{length_description}
 
-    ORIGINAL CONTENT:
-    {content}
+STYLE: {style}
+{style_description}
 
-    INSTRUCTIONS:
-    - Do NOT include subject lines in your response
-    - Do NOT add "Subject:" prefixes
-    - Start directly with the content (for emails, start with "Hi" or the greeting)
-    - Maintain all factual information and key messages
-    - Ensure the rewritten version matches the specified mood, length, and style
-    - Keep the same structure and format as the original
-    - Make it compelling and engaging for journalists/media professionals
-    - Ensure it's ready to use without further editing
+IMPORTANT: {placeholder_rules}
 
-    REWRITTEN CONTENT:"""
+CRITICAL INSTRUCTIONS:
+- DO NOT add "Subject:" or any prefixes
+- For emails: Start directly with "Hi {{{{journalist_name}}}}" or the greeting
+- Maintain all factual information and key points
+- Make it compelling and ready to use immediately
+
+ORIGINAL CONTENT:
+{content}
+
+REWRITTEN VERSION (output ONLY the rewritten content):""")
         
         try:
-            print(f"🔍 DEBUG: Sending request to OpenAI...")
-            response = self.client.chat.completions.create(
-                model="gpt-4.1-nano-2025-04-14",
-                messages=[{
-                    "role": "user", 
-                    "content": prompt
-                }],
-                temperature=0.7,
-                max_tokens=2000
-            )
+            chain = rewrite_prompt | self.llm | self.output_parser
             
-            result = response.choices[0].message.content.strip()
-            print(f"🔍 DEBUG: OpenAI response received: {len(result)} characters")
-            print(f"🔍 DEBUG: Response preview: {result[:150]}...")
+            result = await chain.ainvoke({
+                "content_type": content_type,
+                "mood": mood,
+                "mood_description": mood_instructions[mood],
+                "length": length,
+                "length_description": length_instructions[length],
+                "style": style,
+                "style_description": style_instructions[style],
+                "placeholder_rules": placeholder_instruction,
+                "content": content
+            })
+            
+            result = result.strip()
+            
+            # Clean up for emails
+            if content_type == "email":
+                lines = result.split('\n')
+                cleaned_lines = [line for line in lines if not line.strip().startswith(("Subject:", "SUBJECT:"))]
+                result = '\n'.join(cleaned_lines).strip()
+            
+            print(f"✅ DEBUG: Rewrite successful - {len(result)} characters")
             return result
             
         except Exception as e:
             print(f"❌ Error rewriting content: {e}")
-            return content  # Return original on error
+            return content
 
 
 # Global instance

@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     environment: str = "development"
     debug: bool = True
     api_v1_prefix: str = "/api/v1"
+
+    # Razorpay Configuration
+    razorpay_key_id: str
+    razorpay_key_secret: str
     
     class Config:
         env_file = ".env"

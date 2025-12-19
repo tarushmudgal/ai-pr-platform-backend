@@ -7,7 +7,8 @@ from app.models.pitch import Pitch
 from app.models.newsroom import Newsroom
 from app.models.interaction import Interaction  # Add Interaction import
 from app.models.chatbot import ChatSession
-
+from app.models.subscription import SubscriptionPlan, UserSubscription 
+from app.models.payment import PaymentVerification, PaymentOrderCreate
 class Database:
     client: AsyncIOMotorClient = None
     connected: bool = False
@@ -28,7 +29,7 @@ async def connect_to_mongo():
         # Initialize Beanie with all models
         await init_beanie(
             database=database.client[settings.database_name],
-            document_models=[User, Journalist, Pitch, Interaction, Newsroom, ChatSession]  # Add Interaction model
+            document_models=[User, Journalist, Pitch, Interaction, Newsroom, ChatSession, SubscriptionPlan, UserSubscription]  # Add Interaction model
         )
         
         print(f"📊 Database '{settings.database_name}' initialized with all models")
